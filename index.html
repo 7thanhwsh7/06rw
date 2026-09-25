@@ -376,6 +376,11 @@
   .statusPill-incorrect{border-color:var(--bad);color:var(--bad);}
   .statusPill-omitted{border-color:#946200;color:#946200;}
   .correctAnsCell{color:#2e7d32;font-weight:700;}
+  /* Câu có đáp án chờ GV xác nhận (pendingKey: true) */
+  .reviewTable tr.pendingRow td{background:#fff6d6;}
+  .pendingTag{display:inline-block;margin-left:6px;font-size:11px;font-weight:700;color:#946200;}
+  .pendingNote{background:#fff6d6;border:1px solid #f0d27a;border-radius:8px;padding:10px 14px;
+    font-size:13px;color:#5c4400;margin:0 0 14px;line-height:1.5;}
   .viewDetailsBtn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 14px;
     font-size:12.5px;font-weight:600;cursor:pointer;color:#222;}
   .viewDetailsBtn:hover{border-color:#9fb3cc;}
@@ -697,6 +702,7 @@
     </div>
 <div class="rcard" id="wrongListCard" style="display:none;">
       <h3 style="color:#141414;margin-top:0;">Questions to Review</h3>
+      <div class="pendingNote" id="pendingKeyNote" style="display:none;"></div>
       <div style="overflow-x:auto;">
         <table class="reviewTable">
           <thead><tr>
@@ -752,6 +758,7 @@ const TEST_SECTION = "RW"; // "RW" (Reading & Writing) hoặc "M" (Math) — quy
                   tính theo KÝ TỰ THUẦN của field đó (passage/question/opt-A..D),
                   ví dụ: formats: { passage: [{start:10,end:20,tag:'i'}] }.
                   tag: 'i' in nghiêng, 'b' in đậm, 'u' gạch chân, 'blk' khối thụt lề (đoạn trích văn học), 'li' bullet thụt treo.
+     pendingKey   TUỲ CHỌN — true nếu key chưa chắc: trang kết quả tô vàng câu đó + ghi chú "chờ GV xác nhận".
    ---------------------------------------------------------------------------- */
 const QUESTIONS_M1 = [
   {
@@ -1565,7 +1572,8 @@ Our tutor, Alejandro Román, brought his younger brother, Miguel, to class one d
     correctKey: "C",
     formats: {
       "passage": [{start:68, end:193, tag:'li'}, {start:68, end:919, tag:'blk'}, {start:193, end:364, tag:'li'}, {start:364, end:470, tag:'li'}, {start:470, end:574, tag:'li'}, {start:574, end:761, tag:'li'}, {start:761, end:919, tag:'li'}]
-    }
+    },
+    pendingKey: true // key chưa chắc — chờ GV xác nhận
   },
   {
     id: 25, // câu nguồn 54
@@ -2314,8 +2322,8 @@ function buildReviewTable(){
     const correctAnsCell = answersUnlocked
       ? `<span class="correctAnsCell">${q.correctKey}</span>`
       : `<span style="color:var(--muted);" title="Nhập mã GV để xem">&#128274;</span>`;
-    return `<tr>
-      <td>${escHtml(item.moduleLabel)} · Q${item.indexInModule+1}</td>
+    return `<tr${q.pendingKey ? ' class="pendingRow"' : ''}>
+      <td>${escHtml(item.moduleLabel)} · Q${item.indexInModule+1}${q.pendingKey ? '<span class="pendingTag">* Key pending</span>' : ''}</td>
       <td><span class="statusPill statusPill-${statusCls}">${status}</span></td>
       <td>Multiple Choice</td>
       <td>${yourAnsCell}</td>
@@ -2324,6 +2332,15 @@ function buildReviewTable(){
       <td><button type="button" class="viewDetailsBtn" onclick="openQuestionDetail(${i})">View Details</button></td>
     </tr>`;
   }).join('');
+  const pendingItems = REVIEW_ITEMS.filter(it=>it.question.pendingKey);
+  const noteEl = document.getElementById('pendingKeyNote');
+  if(noteEl){
+    if(pendingItems.length){
+      const list = pendingItems.map(it=>escHtml(it.moduleLabel)+' · Q'+(it.indexInModule+1)).join(', ');
+      noteEl.innerHTML = `<b>* Answer key pending:</b> ${list}. The answer for the highlighted question(s) will be confirmed after your teacher reviews it, so your score may be adjusted.<br><span style="font-family:'Times New Roman',Times,serif;">Đáp án câu được tô vàng sẽ được xác nhận sau khi giáo viên chấm — điểm có thể được điều chỉnh.</span>`;
+      noteEl.style.display = '';
+    } else noteEl.style.display = 'none';
+  }
 }
 
 function openQuestionDetail(i){
@@ -2345,7 +2362,7 @@ function renderQuestionDetail(){
   const isCorrect = ans === q.correctKey;
   const status = isOmitted ? 'Omitted' : (isCorrect ? 'Correct' : 'Incorrect');
 
-  document.getElementById('qdTitle').textContent = item.moduleLabel + ' — Question ' + (item.indexInModule+1);
+  document.getElementById('qdTitle').textContent = item.moduleLabel + ' — Question ' + (item.indexInModule+1) + (q.pendingKey ? '  (* answer key pending teacher review)' : '');
   const pill = document.getElementById('qdStatusPill');
   pill.textContent = status;
   pill.className = 'statusPill statusPill-' + status.toLowerCase();
